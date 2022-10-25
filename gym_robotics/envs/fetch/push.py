@@ -9,7 +9,7 @@ MODEL_XML_PATH = os.path.join("fetch", "push.xml")
 
 
 class MujocoPyFetchPushEnv(MujocoPyFetchEnv, EzPickle):
-    def __init__(self, reward_type="sparse", **kwargs):
+    def __init__(self, reward_type="sparse", hysr_type="Hysr", **kwargs):
         initial_qpos = {
             "robot0:slide0": 0.405,
             "robot0:slide1": 0.48,
@@ -30,13 +30,14 @@ class MujocoPyFetchPushEnv(MujocoPyFetchEnv, EzPickle):
             distance_threshold=0.05,
             initial_qpos=initial_qpos,
             reward_type=reward_type,
+            hysr_type=hysr_type,
             **kwargs,
         )
-        EzPickle.__init__(self, reward_type=reward_type, **kwargs)
+        EzPickle.__init__(self, reward_type=reward_type, hysr_type=hysr_type, **kwargs)
 
 
 class MujocoFetchPushEnv(MujocoFetchEnv, EzPickle):
-    def __init__(self, reward_type="sparse", **kwargs):
+    def __init__(self, reward_type="sparse", hysr_type="Hysr", **kwargs):
         initial_qpos = {
             "robot0:slide0": 0.405,
             "robot0:slide1": 0.48,
@@ -57,6 +58,7 @@ class MujocoFetchPushEnv(MujocoFetchEnv, EzPickle):
             distance_threshold=0.05,
             initial_qpos=initial_qpos,
             reward_type=reward_type,
+            hysr_type=hysr_type,
             **kwargs,
         )
-        EzPickle.__init__(self, reward_type=reward_type, **kwargs)
+        EzPickle.__init__(self, reward_type=reward_type, hysr_type=hysr_type, **kwargs)

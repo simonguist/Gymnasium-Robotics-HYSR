@@ -13,74 +13,85 @@ def register_robotics_envs():
         return a
 
     for reward_type in ["sparse", "dense"]:
-        suffix = "Dense" if reward_type == "dense" else ""
+        suffix_reward = "Dense" if reward_type == "dense" else ""
         kwargs = {
             "reward_type": reward_type,
         }
 
-        # Fetch
-        register(
-            id=f"FetchSlide{suffix}-v1",
-            entry_point="gym_robotics.envs:MujocoPyFetchSlideEnv",
-            kwargs=kwargs,
-            max_episode_steps=50,
-        )
+        for hysr_type in ["Hysr", "HysrGoal", "HysrObject"]:
+            suffix = suffix_reward + hysr_type
 
-        register(
-            id=f"FetchSlide{suffix}-v2",
-            entry_point="gym_robotics.envs:MujocoFetchSlideEnv",
-            kwargs=kwargs,
-            max_episode_steps=50,
-        )
+            kwargs = {
+                "reward_type": reward_type,
+                "hysr_type": hysr_type
+            }
 
-        register(
-            id=f"FetchPickAndPlace{suffix}-v1",
-            entry_point="gym_robotics.envs:MujocoPyFetchPickAndPlaceEnv",
-            kwargs=kwargs,
-            max_episode_steps=50,
-        )
+            # Fetch
+            register(
+                id=f"FetchSlide{suffix}-v1",
+                entry_point="gym_robotics.envs:MujocoPyFetchSlideEnv",
+                kwargs=kwargs,
+                max_episode_steps=50,
+            )
 
-        register(
-            id=f"FetchPickAndPlace{suffix}-v2",
-            entry_point="gym_robotics.envs:MujocoFetchPickAndPlaceEnv",
-            kwargs=kwargs,
-            max_episode_steps=50,
-        )
+            register(
+                id=f"FetchSlide{suffix}-v2",
+                entry_point="gym_robotics.envs:MujocoFetchSlideEnv",
+                kwargs=kwargs,
+                max_episode_steps=50,
+            )
 
-        register(
-            id=f"FetchReach{suffix}-v1",
-            entry_point="gym_robotics.envs:MujocoPyFetchReachEnv",
-            kwargs=kwargs,
-            max_episode_steps=50,
-        )
+            register(
+                id=f"FetchPickAndPlace{suffix}-v1",
+                entry_point="gym_robotics.envs:MujocoPyFetchPickAndPlaceEnv",
+                kwargs=kwargs,
+                max_episode_steps=50,
+            )
 
-        register(
-            id=f"FetchReach{suffix}-v2",
-            entry_point="gym_robotics.envs:MujocoPyFetchReachEnv",
-            kwargs=kwargs,
-            max_episode_steps=50,
-        )
+            register(
+                id=f"FetchPickAndPlace{suffix}-v2",
+                entry_point="gym_robotics.envs:MujocoFetchPickAndPlaceEnv",
+                kwargs=kwargs,
+                max_episode_steps=50,
+            )
 
-        register(
-            id=f"FetchReach{suffix}-v3",
-            entry_point="gym_robotics.envs:MujocoFetchReachEnv",
-            kwargs=kwargs,
-            max_episode_steps=50,
-        )
+            register(
+                id=f"FetchReach{suffix}-v1",
+                entry_point="gym_robotics.envs:MujocoPyFetchReachEnv",
+                kwargs=kwargs,
+                max_episode_steps=50,
+            )
 
-        register(
-            id=f"FetchPush{suffix}-v1",
-            entry_point="gym_robotics.envs:MujocoPyFetchPushEnv",
-            kwargs=kwargs,
-            max_episode_steps=50,
-        )
+            register(
+                id=f"FetchReach{suffix}-v2",
+                entry_point="gym_robotics.envs:MujocoPyFetchReachEnv",
+                kwargs=kwargs,
+                max_episode_steps=50,
+            )
 
-        register(
-            id=f"FetchPush{suffix}-v2",
-            entry_point="gym_robotics.envs:MujocoFetchPushEnv",
-            kwargs=kwargs,
-            max_episode_steps=50,
-        )
+            register(
+                id=f"FetchReach{suffix}-v3",
+                entry_point="gym_robotics.envs:MujocoFetchReachEnv",
+                kwargs=kwargs,
+                max_episode_steps=50,
+            )
+
+            register(
+                id=f"FetchPush{suffix}-v1",
+                entry_point="gym_robotics.envs:MujocoPyFetchPushEnv",
+                kwargs=kwargs,
+                max_episode_steps=50,
+            )
+
+            register(
+                id=f"FetchPush{suffix}-v2",
+                entry_point="gym_robotics.envs:MujocoFetchPushEnv",
+                kwargs=kwargs,
+                max_episode_steps=50,
+            )
+
+        # Register Hand envs normally (without HYSR)
+        suffix = suffix_reward
 
         # Hand
         register(

@@ -31,6 +31,8 @@ except ImportError as e:
 
 DEFAULT_SIZE = 480
 
+N_EXTRA_VIRTUAL_STATES = 100
+
 
 class BaseRobotEnv(GoalEnv):
 
@@ -52,6 +54,7 @@ class BaseRobotEnv(GoalEnv):
         render_mode: Optional[str] = None,
         width: int = DEFAULT_SIZE,
         height: int = DEFAULT_SIZE,
+        hysr_type: str = "Hysr",
     ):
 
         if model_path.startswith("/"):
@@ -110,6 +113,14 @@ class BaseRobotEnv(GoalEnv):
 
         self._step_callback()
         obs = self._get_obs()
+        if self.hysr_type == "Hysr":
+            extra_obs = [self._get_obs(idx+1, self.extra_goals[idx]) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+        elif self.hysr_type== "HysrObject":
+            extra_obs = [self._get_obs(idx+1, self.goal) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+        elif self.hysr_type=="HysrGoal":
+            extra_obs = [self._get_obs(0, self.extra_goals[idx]) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+        else:
+            raise ValueError("hysr_typ unkown")
 
         info = {
             "is_success": self._is_success(obs["achieved_goal"], self.goal),
@@ -117,9 +128,22 @@ class BaseRobotEnv(GoalEnv):
 
         terminated = False
         truncated = False
+        extra_terminated = [False for idx in range(N_EXTRA_VIRTUAL_STATES)]
+        extra_truncated = [False for idx in range(N_EXTRA_VIRTUAL_STATES)]
 
         reward = self.compute_reward(obs["achieved_goal"], self.goal, info)
+        extra_rewards = [self.compute_reward(extra_obs[idx]["achieved_goal"], self.extra_goals[idx], info) for idx in range(N_EXTRA_VIRTUAL_STATES)]
         self.renderer.render_step()
+
+        info = {
+            "is_success": self._is_success(obs["achieved_goal"], self.goal),
+            "extra_is_success": [self._is_success(extra_obs[idx]["achieved_goal"], self.extra_goals[idx]) for idx in range(N_EXTRA_VIRTUAL_STATES)],
+            "extra_obs": extra_obs,
+            "extra_rewards": extra_rewards,
+            "extra_terminated": extra_terminated,
+            "extra_truncated": extra_truncated,
+            "initial_extra_obs": self.initial_extra_obs,
+        }
 
         return obs, reward, terminated, truncated, info
 
@@ -140,13 +164,32 @@ class BaseRobotEnv(GoalEnv):
         while not did_reset_sim:
             did_reset_sim = self._reset_sim()
         self.goal = self._sample_goal().copy()
+        if self.hysr_type in ["Hysr", "HysrGoal"]:
+            self.extra_goals = [self._sample_goal().copy() for _ in range(N_EXTRA_VIRTUAL_STATES)]
+        elif self.hysr_type=="HysrObject":
+            self.extra_goals = [self.goal.copy() for _ in range(N_EXTRA_VIRTUAL_STATES)]
+        else:
+            raise ValueError("hysr_typ unkown")
         obs = self._get_obs()
+        if self.hysr_type == "Hysr":
+            extra_obs = [self._get_obs(idx+1, self.extra_goals[idx]) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+        elif self.hysr_type== "HysrObject":
+            extra_obs = [self._get_obs(idx+1, self.goal) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+        elif self.hysr_type=="HysrGoal":
+            extra_obs = [self._get_obs(0, self.extra_goals[idx]) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+        else:
+            raise ValueError("hysr_typ unkown")
+        self.initial_extra_obs = extra_obs
         self.renderer.reset()
         self.renderer.render_step()
+        info = {
+            "extra_obs": extra_obs,
+             "initial_extra_obs": self.initial_extra_obs,
+        }
         if not return_info:
             return obs
         else:
-            return obs, {}
+            return obs, info
 
     def close(self):
         if self.viewer is not None:

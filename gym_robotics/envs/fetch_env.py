@@ -5,6 +5,7 @@ import numpy as np
 from gym_robotics.envs.robot_env import MujocoPyRobotEnv, MujocoRobotEnv
 from gym_robotics.utils import rotations
 
+N_EXTRA_VIRTUAL_STATES = 100
 
 def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape
@@ -30,6 +31,7 @@ def get_base_fetch_env(RobotEnvClass: Union[MujocoPyRobotEnv, MujocoRobotEnv]):
             target_range,
             distance_threshold,
             reward_type,
+            hysr_type,
             **kwargs
         ):
             """Initializes a new Fetch environment.
@@ -58,8 +60,9 @@ def get_base_fetch_env(RobotEnvClass: Union[MujocoPyRobotEnv, MujocoRobotEnv]):
             self.target_range = target_range
             self.distance_threshold = distance_threshold
             self.reward_type = reward_type
+            self.hysr_type = hysr_type
 
-            super().__init__(n_actions=4, **kwargs)
+            super().__init__(n_actions=4, hysr_type = hysr_type, **kwargs)
 
         # GoalEnv methods
         # ----------------------------
@@ -100,7 +103,7 @@ def get_base_fetch_env(RobotEnvClass: Union[MujocoPyRobotEnv, MujocoRobotEnv]):
 
             return action
 
-        def _get_obs(self):
+        def _get_obs(self, idx_object=0, goal=[None]):
             (
                 grip_pos,
                 object_pos,
@@ -111,7 +114,7 @@ def get_base_fetch_env(RobotEnvClass: Union[MujocoPyRobotEnv, MujocoRobotEnv]):
                 object_velr,
                 grip_velp,
                 gripper_vel,
-            ) = self.generate_mujoco_observations()
+            ) = self.generate_mujoco_observations(idx_object)
 
             if not self.has_object:
                 achieved_goal = grip_pos.copy()
@@ -131,11 +134,13 @@ def get_base_fetch_env(RobotEnvClass: Union[MujocoPyRobotEnv, MujocoRobotEnv]):
                     gripper_vel,
                 ]
             )
+            if None in goal:
+                goal = self.goal.copy()
 
             return {
                 "observation": obs.copy(),
                 "achieved_goal": achieved_goal.copy(),
-                "desired_goal": self.goal.copy(),
+                "desired_goal": goal.copy(),
             }
 
         def generate_mujoco_observations(self):
@@ -190,7 +195,7 @@ class MujocoPyFetchEnv(get_base_fetch_env(MujocoPyRobotEnv)):
         self._utils.ctrl_set_action(self.sim, action)
         self._utils.mocap_set_action(self.sim, action)
 
-    def generate_mujoco_observations(self):
+    def generate_mujoco_observations(self, object_id):
         # positions
         grip_pos = self.sim.data.get_site_xpos("robot0:grip")
 
@@ -199,15 +204,17 @@ class MujocoPyFetchEnv(get_base_fetch_env(MujocoPyRobotEnv)):
 
         robot_qpos, robot_qvel = self._utils.robot_get_obs(self.sim)
         if self.has_object:
-            object_pos = self.sim.data.get_site_xpos("object0")
-            # rotations
-            object_rot = rotations.mat2euler(self.sim.data.get_site_xmat("object0"))
-            # velocities
-            object_velp = self.sim.data.get_site_xvelp("object0") * dt
-            object_velr = self.sim.data.get_site_xvelr("object0") * dt
-            # gripper state
-            object_rel_pos = object_pos - grip_pos
-            object_velp -= grip_velp
+            for object_id in range(N_EXTRA_VIRTUAL_STATES + 1):
+                object_name = "object" + str(object_id)
+                object_pos = self.sim.data.get_site_xpos(object_name)
+                # rotations
+                object_rot = rotations.mat2euler(self.sim.data.get_site_xmat(object_name))
+                # velocities
+                object_velp = self.sim.data.get_site_xvelp(object_name) * dt
+                object_velr = self.sim.data.get_site_xvelr(object_name) * dt
+                # gripper state
+                object_rel_pos = object_pos - grip_pos
+                object_velp -= grip_velp
         else:
             object_pos = (
                 object_rot
@@ -261,6 +268,12 @@ class MujocoPyFetchEnv(get_base_fetch_env(MujocoPyRobotEnv)):
     def _env_setup(self, initial_qpos):
         for name, value in initial_qpos.items():
             self.sim.data.set_joint_qpos(name, value)
+            # setup extre objects in the same way as main object
+            if "object0" in name:
+                for object_id in range(N_EXTRA_VIRTUAL_STATES + 1):
+                    extra_object = "object" + str(object_id)
+                    extra_name = name.replace("object0", extra_object)
+                    self.sim.data.set_joint_qpos(extra_name, value)
         self._utils.reset_mocap_welds(self.sim)
         self.sim.forward()
 
@@ -298,7 +311,7 @@ class MujocoFetchEnv(get_base_fetch_env(MujocoRobotEnv)):
         self._utils.ctrl_set_action(self.model, self.data, action)
         self._utils.mocap_set_action(self.model, self.data, action)
 
-    def generate_mujoco_observations(self):
+    def generate_mujoco_observations(self, object_id):
         # positions
         grip_pos = self._utils.get_site_xpos(self.model, self.data, "robot0:grip")
 
@@ -310,17 +323,18 @@ class MujocoFetchEnv(get_base_fetch_env(MujocoRobotEnv)):
             self.model, self.data, self._model_names.joint_names
         )
         if self.has_object:
-            object_pos = self._utils.get_site_xpos(self.model, self.data, "object0")
+            object_name = "object" + str(object_id)
+            object_pos = self._utils.get_site_xpos(self.model, self.data, object_name)
             # rotations
             object_rot = rotations.mat2euler(
-                self._utils.get_site_xmat(self.model, self.data, "object0")
+                self._utils.get_site_xmat(self.model, self.data, object_name)
             )
             # velocities
             object_velp = (
-                self._utils.get_site_xvelp(self.model, self.data, "object0") * dt
+                self._utils.get_site_xvelp(self.model, self.data, object_name) * dt
             )
             object_velr = (
-                self._utils.get_site_xvelr(self.model, self.data, "object0") * dt
+                self._utils.get_site_xvelr(self.model, self.data, object_name) * dt
             )
             # gripper state
             object_rel_pos = object_pos - grip_pos
@@ -368,19 +382,21 @@ class MujocoFetchEnv(get_base_fetch_env(MujocoRobotEnv)):
 
         # Randomize start position of object.
         if self.has_object:
-            object_xpos = self.initial_gripper_xpos[:2]
-            while np.linalg.norm(object_xpos - self.initial_gripper_xpos[:2]) < 0.1:
-                object_xpos = self.initial_gripper_xpos[:2] + self.np_random.uniform(
-                    -self.obj_range, self.obj_range, size=2
+            for object_id in range(N_EXTRA_VIRTUAL_STATES + 1):
+                object_joint = "object" + str(object_id) + ":joint"
+                object_xpos = self.initial_gripper_xpos[:2]
+                while np.linalg.norm(object_xpos - self.initial_gripper_xpos[:2]) < 0.1:
+                    object_xpos = self.initial_gripper_xpos[:2] + self.np_random.uniform(
+                        -self.obj_range, self.obj_range, size=2
+                    )
+                object_qpos = self._utils.get_joint_qpos(
+                    self.model, self.data, object_joint
                 )
-            object_qpos = self._utils.get_joint_qpos(
-                self.model, self.data, "object0:joint"
-            )
-            assert object_qpos.shape == (7,)
-            object_qpos[:2] = object_xpos
-            self._utils.set_joint_qpos(
-                self.model, self.data, "object0:joint", object_qpos
-            )
+                assert object_qpos.shape == (7,)
+                object_qpos[:2] = object_xpos
+                self._utils.set_joint_qpos(
+                    self.model, self.data, object_joint, object_qpos
+                )
 
         self._mujoco.mj_forward(self.model, self.data)
         return True
@@ -388,6 +404,12 @@ class MujocoFetchEnv(get_base_fetch_env(MujocoRobotEnv)):
     def _env_setup(self, initial_qpos):
         for name, value in initial_qpos.items():
             self._utils.set_joint_qpos(self.model, self.data, name, value)
+            # setup extre objects in the same way as main object
+            if "object0" in name:
+                for object_id in range(N_EXTRA_VIRTUAL_STATES + 1):
+                    extra_object = "object" + str(object_id)
+                    extra_name = name.replace("object0", extra_object)
+                    self._utils.set_joint_qpos(self.model, self.data, extra_name, value)
         self._utils.reset_mocap_welds(self.model, self.data)
         self._mujoco.mj_forward(self.model, self.data)
 
