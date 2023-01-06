@@ -10,7 +10,7 @@ MODEL_XML_PATH = os.path.join("fetch", "slide.xml")
 
 
 class MujocoPyFetchSlideEnv(MujocoPyFetchEnv, EzPickle):
-    def __init__(self, reward_type="sparse", hysr_type="Hysr", **kwargs):
+    def __init__(self, reward_type="sparse", hysr_type="Hysr", hysr_rad=1.0, **kwargs):
         initial_qpos = {
             "robot0:slide0": 0.05,
             "robot0:slide1": 0.48,
@@ -26,19 +26,20 @@ class MujocoPyFetchSlideEnv(MujocoPyFetchEnv, EzPickle):
             gripper_extra_height=-0.02,
             target_in_the_air=False,
             target_offset=np.array([0.4, 0.0, 0.0]),
-            obj_range=0.1,
+            obj_range=0.2,
             target_range=0.3,
             distance_threshold=0.05,
             initial_qpos=initial_qpos,
             reward_type=reward_type,
             hysr_type=hysr_type,
+            hysr_rad=hysr_rad,
             **kwargs,
         )
-        EzPickle.__init__(self, reward_type=reward_type, hysr_type=hysr_type, **kwargs)
+        EzPickle.__init__(self, reward_type=reward_type, hysr_type=hysr_type, hysr_rad=1.0, **kwargs)
 
 
 class MujocoFetchSlideEnv(MujocoFetchEnv, EzPickle):
-    def __init__(self, reward_type="sparse", hysr_type="Hysr", **kwargs):
+    def __init__(self, reward_type="sparse", hysr_type="Hysr", hysr_rad=1.0, **kwargs):
         initial_qpos = {
             "robot0:slide0": 0.05,
             "robot0:slide1": 0.48,
@@ -54,12 +55,13 @@ class MujocoFetchSlideEnv(MujocoFetchEnv, EzPickle):
             gripper_extra_height=-0.02,
             target_in_the_air=False,
             target_offset=np.array([0.4, 0.0, 0.0]),
-            obj_range=0.1,
+            obj_range=0.2,
             target_range=0.3,
             distance_threshold=0.05,
             initial_qpos=initial_qpos,
             reward_type=reward_type,
             hysr_type=hysr_type,
+            hysr_rad=hysr_rad,
             **kwargs,
         )
-        EzPickle.__init__(self, reward_type=reward_type, hysr_type=hysr_type, **kwargs)
+        EzPickle.__init__(self, reward_type=reward_type, hysr_type=hysr_type, hysr_rad=1.0, **kwargs)

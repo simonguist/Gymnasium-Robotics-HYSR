@@ -32,6 +32,7 @@ def get_base_fetch_env(RobotEnvClass: Union[MujocoPyRobotEnv, MujocoRobotEnv]):
             distance_threshold,
             reward_type,
             hysr_type,
+            hysr_rad,
             **kwargs
         ):
             """Initializes a new Fetch environment.
@@ -61,8 +62,9 @@ def get_base_fetch_env(RobotEnvClass: Union[MujocoPyRobotEnv, MujocoRobotEnv]):
             self.distance_threshold = distance_threshold
             self.reward_type = reward_type
             self.hysr_type = hysr_type
+            self.hysr_rad = hysr_rad
 
-            super().__init__(n_actions=4, hysr_type = hysr_type, **kwargs)
+            super().__init__(n_actions=4, hysr_type = hysr_type, hysr_rad = hysr_rad, **kwargs)
 
         # GoalEnv methods
         # ----------------------------
@@ -380,15 +382,20 @@ class MujocoFetchEnv(get_base_fetch_env(MujocoRobotEnv)):
         if self.model.na != 0:
             self.data.act[:] = None
 
-        # Randomize start position of object.
+        # Randomize start position of objects.
         if self.has_object:
+            object_xpos_0 = np.zeros(2)
             for object_id in range(N_EXTRA_VIRTUAL_STATES + 1):
                 object_joint = "object" + str(object_id) + ":joint"
                 object_xpos = self.initial_gripper_xpos[:2]
-                while np.linalg.norm(object_xpos - self.initial_gripper_xpos[:2]) < 0.1:
+                while (np.linalg.norm(object_xpos - self.initial_gripper_xpos[:2]) < 0.1 or # objects are far enough from gripper
+                     (object_id != 0 and np.linalg.norm(object_xpos - object_xpos_0) > self.hysr_rad)):  # additional objects are close to object 
                     object_xpos = self.initial_gripper_xpos[:2] + self.np_random.uniform(
                         -self.obj_range, self.obj_range, size=2
                     )
+
+                if object_id == 0:
+                    object_xpos_0 = object_xpos
                 object_qpos = self._utils.get_joint_qpos(
                     self.model, self.data, object_joint
                 )

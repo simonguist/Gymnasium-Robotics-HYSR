@@ -31,9 +31,6 @@ except ImportError as e:
 
 DEFAULT_SIZE = 480
 
-N_EXTRA_VIRTUAL_STATES = 100
-
-
 class BaseRobotEnv(GoalEnv):
 
     metadata = {
@@ -55,6 +52,7 @@ class BaseRobotEnv(GoalEnv):
         width: int = DEFAULT_SIZE,
         height: int = DEFAULT_SIZE,
         hysr_type: str = "Hysr",
+        hysr_rad: float = 1.0
     ):
 
         if model_path.startswith("/"):
@@ -99,6 +97,11 @@ class BaseRobotEnv(GoalEnv):
 
         self.renderer = Renderer(self.render_mode, self._render)
 
+        if self.hysr_type == "HysrX":
+            self.N_EXTRA_VIRTUAL_STATES = 20
+        else:
+            self.N_EXTRA_VIRTUAL_STATES = 100
+
     # Env methods
     # ----------------------------
 
@@ -114,11 +117,13 @@ class BaseRobotEnv(GoalEnv):
         self._step_callback()
         obs = self._get_obs()
         if self.hysr_type == "Hysr":
-            extra_obs = [self._get_obs(idx+1, self.extra_goals[idx]) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+            extra_obs = [self._get_obs(idx+1, self.extra_goals[idx]) for idx in range(self.N_EXTRA_VIRTUAL_STATES)]
+        elif self.hysr_type == "HysrX":
+            extra_obs = [self._get_obs(idx+1, self.extra_goals[idx_goal]) for idx in range(self.N_EXTRA_VIRTUAL_STATES) for idx_goal in range(self.N_EXTRA_VIRTUAL_STATES)]
         elif self.hysr_type== "HysrObject":
-            extra_obs = [self._get_obs(idx+1, self.goal) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+            extra_obs = [self._get_obs(idx+1, self.goal) for idx in range(self.N_EXTRA_VIRTUAL_STATES)]
         elif self.hysr_type=="HysrGoal":
-            extra_obs = [self._get_obs(0, self.extra_goals[idx]) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+            extra_obs = [self._get_obs(0, self.extra_goals[idx]) for idx in range(self.N_EXTRA_VIRTUAL_STATES)]
         else:
             raise ValueError("hysr_typ unkown")
 
@@ -128,22 +133,31 @@ class BaseRobotEnv(GoalEnv):
 
         terminated = False
         truncated = False
-        extra_terminated = [False for idx in range(N_EXTRA_VIRTUAL_STATES)]
-        extra_truncated = [False for idx in range(N_EXTRA_VIRTUAL_STATES)]
-
         reward = self.compute_reward(obs["achieved_goal"], self.goal, info)
-        extra_rewards = [self.compute_reward(extra_obs[idx]["achieved_goal"], self.extra_goals[idx], info) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+        
+
+        
+        if not self.hysr_type == "HysrX":
+            extra_rewards = [self.compute_reward(extra_obs[idx]["achieved_goal"], self.extra_goals[idx], info) for idx in range(self.N_EXTRA_VIRTUAL_STATES)]
+            extra_terminated = [False for idx in range(self.N_EXTRA_VIRTUAL_STATES)]
+            extra_truncated = [False for idx in range(self.N_EXTRA_VIRTUAL_STATES)]
+        else:
+            extra_rewards = [self.compute_reward(extra_obs[idx]["achieved_goal"], self.extra_goals[idx_goal], info) for idx in range(self.N_EXTRA_VIRTUAL_STATES) for idx_goal in range(self.N_EXTRA_VIRTUAL_STATES)]
+            extra_terminated = [False for idx in range(self.N_EXTRA_VIRTUAL_STATES) for idx_goal in range(self.N_EXTRA_VIRTUAL_STATES)]
+            extra_truncated = [False for idx in range(self.N_EXTRA_VIRTUAL_STATES) for idx_goal in range(self.N_EXTRA_VIRTUAL_STATES)]
+
         self.renderer.render_step()
 
         info = {
             "is_success": self._is_success(obs["achieved_goal"], self.goal),
-            "extra_is_success": [self._is_success(extra_obs[idx]["achieved_goal"], self.extra_goals[idx]) for idx in range(N_EXTRA_VIRTUAL_STATES)],
+            "extra_is_success": [self._is_success(extra_obs[idx]["achieved_goal"], self.extra_goals[idx_goal]) for idx in range(self.N_EXTRA_VIRTUAL_STATES) for idx_goal in range(self.N_EXTRA_VIRTUAL_STATES)],
             "extra_obs": extra_obs,
             "extra_rewards": extra_rewards,
             "extra_terminated": extra_terminated,
             "extra_truncated": extra_truncated,
             "initial_extra_obs": self.initial_extra_obs,
         }
+
 
         return obs, reward, terminated, truncated, info
 
@@ -164,21 +178,24 @@ class BaseRobotEnv(GoalEnv):
         while not did_reset_sim:
             did_reset_sim = self._reset_sim()
         self.goal = self._sample_goal().copy()
-        if self.hysr_type in ["Hysr", "HysrGoal"]:
-            self.extra_goals = [self._sample_goal().copy() for _ in range(N_EXTRA_VIRTUAL_STATES)]
+        if self.hysr_type in ["Hysr", "HysrGoal", "HysrX"]:
+            self.extra_goals = [self._sample_goal().copy() for _ in range(self.N_EXTRA_VIRTUAL_STATES)]
         elif self.hysr_type=="HysrObject":
-            self.extra_goals = [self.goal.copy() for _ in range(N_EXTRA_VIRTUAL_STATES)]
+            self.extra_goals = [self.goal.copy() for _ in range(self.N_EXTRA_VIRTUAL_STATES)]
         else:
             raise ValueError("hysr_typ unkown")
         obs = self._get_obs()
         if self.hysr_type == "Hysr":
-            extra_obs = [self._get_obs(idx+1, self.extra_goals[idx]) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+            extra_obs = [self._get_obs(idx+1, self.extra_goals[idx]) for idx in range(self.N_EXTRA_VIRTUAL_STATES)]
+        elif self.hysr_type == "HysrX":
+            extra_obs = [self._get_obs(idx+1, self.extra_goals[idx_goal]) for idx in range(self.N_EXTRA_VIRTUAL_STATES) for idx_goal in range(self.N_EXTRA_VIRTUAL_STATES)]
         elif self.hysr_type== "HysrObject":
-            extra_obs = [self._get_obs(idx+1, self.goal) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+            extra_obs = [self._get_obs(idx+1, self.goal) for idx in range(self.N_EXTRA_VIRTUAL_STATES)]
         elif self.hysr_type=="HysrGoal":
-            extra_obs = [self._get_obs(0, self.extra_goals[idx]) for idx in range(N_EXTRA_VIRTUAL_STATES)]
+            extra_obs = [self._get_obs(0, self.extra_goals[idx]) for idx in range(self.N_EXTRA_VIRTUAL_STATES)]
         else:
             raise ValueError("hysr_typ unkown")
+        print("n extra obj:", self.N_EXTRA_VIRTUAL_STATES, "len extra_obs", len(extra_obs), flush=True)
         self.initial_extra_obs = extra_obs
         self.renderer.reset()
         self.renderer.render_step()
