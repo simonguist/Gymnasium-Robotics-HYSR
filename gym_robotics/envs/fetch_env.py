@@ -1,4 +1,5 @@
 from typing import Union
+from collections import OrderedDict
 
 import numpy as np
 
@@ -138,12 +139,15 @@ def get_base_fetch_env(RobotEnvClass: Union[MujocoPyRobotEnv, MujocoRobotEnv]):
             )
             if None in goal:
                 goal = self.goal.copy()
-
-            return {
-                "observation": obs.copy(),
-                "achieved_goal": achieved_goal.copy(),
-                "desired_goal": goal.copy(),
-            }
+            
+            return OrderedDict(
+                [
+                    ("achieved_goal", achieved_goal.copy()),
+                    ("desired_goal", goal.copy()),
+                    ("observation", obs.copy()),
+                ])
+            
+            
 
         def generate_mujoco_observations(self):
 

@@ -158,7 +158,6 @@ class BaseRobotEnv(GoalEnv):
             "initial_extra_obs": self.initial_extra_obs,
         }
 
-
         return obs, reward, terminated, truncated, info
 
     def reset(
@@ -196,13 +195,14 @@ class BaseRobotEnv(GoalEnv):
         else:
             raise ValueError("hysr_typ unkown")
         print("n extra obj:", self.N_EXTRA_VIRTUAL_STATES, "len extra_obs", len(extra_obs), flush=True)
-        self.initial_extra_obs = extra_obs
+        self.initial_extra_obs = extra_obs.copy()
         self.renderer.reset()
         self.renderer.render_step()
         info = {
             "extra_obs": extra_obs,
-             "initial_extra_obs": self.initial_extra_obs,
+            "initial_extra_obs": self.initial_extra_obs,
         }
+        
         if not return_info:
             return obs
         else:
