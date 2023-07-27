@@ -194,7 +194,6 @@ class BaseRobotEnv(GoalEnv):
             extra_obs = [self._get_obs(0, self.extra_goals[idx]) for idx in range(self.N_EXTRA_VIRTUAL_STATES)]
         else:
             raise ValueError("hysr_typ unkown")
-        print("n extra obj:", self.N_EXTRA_VIRTUAL_STATES, "len extra_obs", len(extra_obs), flush=True)
         self.initial_extra_obs = extra_obs.copy()
         self.renderer.reset()
         self.renderer.render_step()
